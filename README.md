@@ -1,4 +1,4 @@
-![asknnu teeth](https://github.com/user-attachments/assets/86d02368-2a66-47e2-8b3d-ec7a8367b3af)
+![teeth final sc](https://github.com/user-attachments/assets/e773e845-5127-481d-ad1e-74167020b8c9)
 
 
 
