@@ -1,0 +1,386 @@
+-- MADE BY SQUIIY gg/Qyrv2RwXPS
+ 
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local UserInputService = UIS
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+ 
+--// Settings
+local aimKey = Enum.KeyCode.E
+local aimPart = "Head"
+local aimRadius = 150
+ 
+local aimingEnabled = false
+local espEnabled = false
+local aiming = false
+local noclip = false
+local walkspeedEnabled = false
+local normalWalkSpeed = 16 -- default Roblox walkspeed
+local infJumpEnabled = false
+local autoClickEnabled = false
+local opKillerEnabled = false
+ 
+local espTable = {}
+ 
+--// Helper Functions
+ 
+local function isEnemy(player)
+	return player.Team ~= LocalPlayer.Team
+end
+ 
+local function getClosestTarget()
+	local closestPlayer = nil
+	local shortestDistance = aimRadius
+ 
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(aimPart) and isEnemy(player) then
+			local part = player.Character[aimPart]
+			local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+			if onScreen then
+				local distance = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+				if distance < shortestDistance then
+					shortestDistance = distance
+					closestPlayer = player
+				end
+			end
+		end
+	end
+ 
+	return closestPlayer
+end
+ 
+--// Aimbot Input
+UIS.InputBegan:Connect(function(input)
+	if input.KeyCode == aimKey then
+		aiming = true
+	end
+end)
+ 
+UIS.InputEnded:Connect(function(input)
+	if input.KeyCode == aimKey then
+		aiming = false
+	end
+end)
+ 
+--// ESP Functions
+local function createESP(player)
+	if player == LocalPlayer then return end
+ 
+	local box = Drawing.new("Square")
+	box.Visible = false
+	box.Color = player.Team and player.Team.TeamColor.Color or Color3.new(1, 1, 1)
+	box.Thickness = 2
+	box.Transparency = 1
+	box.Filled = false
+ 
+	local nameText = Drawing.new("Text")
+	nameText.Visible = false
+	nameText.Size = 13
+	nameText.Color = Color3.new(1, 1, 1)
+	nameText.Center = true
+	nameText.Outline = true
+	nameText.Font = 2
+ 
+	espTable[player] = {
+		Box = box,
+		Name = nameText
+	}
+end
+ 
+local function removeESP(player)
+	if espTable[player] then
+		espTable[player].Box:Remove()
+		espTable[player].Name:Remove()
+		espTable[player] = nil
+	end
+end
+ 
+for _, player in pairs(Players:GetPlayers()) do
+	createESP(player)
+end
+ 
+Players.PlayerAdded:Connect(createESP)
+Players.PlayerRemoving:Connect(removeESP)
+ 
+--// Noclip Logic
+RunService.Stepped:Connect(function()
+	if noclip and LocalPlayer.Character then
+		for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+			if part:IsA("BasePart") and part.CanCollide then
+				part.CanCollide = false
+			end
+		end
+	end
+end)
+ 
+--// Infinite Jump Logic
+UserInputService.JumpRequest:Connect(function()
+	if infJumpEnabled then
+		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+			LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+		end
+	end
+end)
+ 
+--// AutoClick Logic (hold Ctrl to autoclick every 0.1 seconds)
+local autoClickConnection
+local autoClickTimer = 0
+local autoClickInterval = 0.1
+ 
+local function toggleAutoClick(enabled)
+	if enabled then
+		autoClickTimer = 0
+		autoClickConnection = RunService.Heartbeat:Connect(function(dt)
+			autoClickTimer = autoClickTimer + dt
+			if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and autoClickTimer >= autoClickInterval then
+				autoClickTimer = 0
+				mouse1press()
+				mouse1release()
+			end
+		end)
+	else
+		if autoClickConnection then
+			autoClickConnection:Disconnect()
+			autoClickConnection = nil
+		end
+	end
+end
+ 
+--// Walkspeed Toggle
+local function toggleWalkspeed(enabled)
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+		if enabled then
+			LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 35
+		else
+			LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = normalWalkSpeed
+		end
+	end
+end
+ 
+--// OP Killer Logic with flashstep around target (more rapid flashstep)
+local opKillerConnection
+local currentOP = nil
+local flashstepAngle = 0
+local flashstepRadius = 3
+local flashstepSpeed = 20 -- increased radians per second for faster flashstep
+ 
+local function findNextOP()
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 and isEnemy(player) then
+			return player
+		end
+	end
+	return nil
+end
+ 
+local function startOPKiller()
+	currentOP = findNextOP()
+	if not currentOP then return end
+ 
+	flashstepAngle = 0
+ 
+	opKillerConnection = RunService.Heartbeat:Connect(function(dt)
+		if not currentOP or not currentOP.Character or not currentOP.Character:FindFirstChildOfClass("Humanoid") then
+			currentOP = findNextOP()
+			if not currentOP then
+				opKillerEnabled = false
+				if opKillerConnection then
+					opKillerConnection:Disconnect()
+					opKillerConnection = nil
+				end
+				return
+			end
+		end
+ 
+		local hum = currentOP.Character:FindFirstChildOfClass("Humanoid")
+		local hrp = currentOP.Character:FindFirstChild("HumanoidRootPart")
+		if hum and hum.Health <= 0 then
+			currentOP = findNextOP()
+			if not currentOP then
+				opKillerEnabled = false
+				if opKillerConnection then
+					opKillerConnection:Disconnect()
+					opKillerConnection = nil
+				end
+				return
+			end
+		elseif hrp then
+			-- Update flashstep position around target (faster rotation)
+			flashstepAngle = flashstepAngle + flashstepSpeed * dt
+			local offsetX = math.cos(flashstepAngle) * flashstepRadius
+			local offsetZ = math.sin(flashstepAngle) * flashstepRadius
+			local targetPos = hrp.Position
+			local newPos = targetPos + Vector3.new(offsetX, 3, offsetZ) -- 3 studs above ground, circle radius flashstepRadius
+ 
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(newPos, targetPos)
+				LocalPlayer.Character.Humanoid.PlatformStand = true
+			end
+		end
+	end)
+end
+ 
+local function stopOPKiller()
+	if opKillerConnection then
+		opKillerConnection:Disconnect()
+		opKillerConnection = nil
+	end
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+		LocalPlayer.Character.Humanoid.PlatformStand = false
+	end
+end
+ 
+--// Main Render Loop
+RunService.RenderStepped:Connect(function()
+	if aiming and aimingEnabled then
+		local targetPart = nil
+		local closestDist = aimRadius
+		for _, player in pairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(aimPart) and isEnemy(player) then
+				local part = player.Character[aimPart]
+				local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+				if onScreen then
+					local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
+					if dist < closestDist then
+						closestDist = dist
+						targetPart = part
+					end
+				end
+			end
+		end
+		if targetPart then
+			Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+		end
+	end
+ 
+	if espEnabled then
+		for player, visuals in pairs(espTable) do
+			local char = player.Character
+			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Head") then
+				local hrp = char.HumanoidRootPart
+				local head = char.Head
+				local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+				local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 1.5, 0))
+ 
+				if onScreen then
+					local scale = 1 / (Camera.CFrame.Position - hrp.Position).Magnitude * 100
+					local width, height = 50 * scale, 100 * scale
+ 
+					visuals.Box.Size = Vector2.new(width, height)
+					visuals.Box.Position = Vector2.new(pos.X - width / 2, pos.Y - height / 2)
+					visuals.Box.Visible = true
+					visuals.Box.Color = player.Team and player.Team.TeamColor.Color or Color3.new(1, 1, 1)
+ 
+					visuals.Name.Position = Vector2.new(pos.X, headPos.Y - 15)
+					visuals.Name.Text = player.Name
+					visuals.Name.Visible = true
+				else
+					visuals.Box.Visible = false
+					visuals.Name.Visible = false
+				end
+			else
+				visuals.Box.Visible = false
+				visuals.Name.Visible = false
+			end
+		end
+	else
+		for _, visuals in pairs(espTable) do
+			visuals.Box.Visible = false
+			visuals.Name.Visible = false
+		end
+	end
+end)
+ 
+--// GUI Setup
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "SquiiyCheats"
+ 
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 220, 0, 360) -- taller GUI for all buttons
+Frame.Position = UDim2.new(0.5, -110, 0.5, -180)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+ 
+-- Add edge around Frame
+local frameStroke = Instance.new("UIStroke", Frame)
+frameStroke.Thickness = 3
+frameStroke.Color = Color3.new(1, 1, 1) -- white edge
+frameStroke.Transparency = 0
+ 
+-- Background decal image filling the Frame
+local Background = Instance.new("ImageLabel", Frame)
+Background.Size = UDim2.new(1, 0, 1, 0)
+Background.Position = UDim2.new(0, 0, 0, 0)
+Background.Image = "rbxassetid://75042579074097"
+Background.BackgroundTransparency = 1
+Background.ZIndex = 0
+Background.ScaleType = Enum.ScaleType.Tile
+ 
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "Squiiy's Cheats"
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.ZIndex = 1
+ 
+local function makeButton(text, yOffset, callback)
+	local button = Instance.new("TextButton", Frame)
+	button.Size = UDim2.new(0.8, 0, 0, 30)
+	button.Position = UDim2.new(0.1, 0, 0, yOffset)
+	button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.Text = text
+	button.Font = Enum.Font.Gotham
+	button.TextSize = 16
+	button.ZIndex = 1
+	button.MouseButton1Click:Connect(callback)
+	return button
+end
+ 
+makeButton("Aimbot (Hold E)", 40, function()
+	aimingEnabled = not aimingEnabled
+end)
+ 
+makeButton("ESP", 80, function()
+	espEnabled = not espEnabled
+end)
+ 
+makeButton("Noclip", 120, function()
+	noclip = true
+end)
+ 
+makeButton("Clip", 160, function()
+	noclip = false
+end)
+ 
+makeButton("Walkspeed (35)", 200, function()
+	walkspeedEnabled = not walkspeedEnabled
+	toggleWalkspeed(walkspeedEnabled)
+end)
+ 
+makeButton("Infinite Jump", 240, function()
+	infJumpEnabled = not infJumpEnabled
+end)
+ 
+makeButton("AutoClick (Hold Ctrl)", 280, function()
+	autoClickEnabled = not autoClickEnabled
+	toggleAutoClick(autoClickEnabled)
+end)
+ 
+makeButton("OPKiller", 320, function()
+	opKillerEnabled = not opKillerEnabled
+	if opKillerEnabled then
+		startOPKiller()
+	else
+		stopOPKiller()
+	end
+end)
+ 
